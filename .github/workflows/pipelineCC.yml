@@ -19,6 +19,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      - name: Verificar inputs
+        run: |
+          echo "Historia de Usuario: ${{ github.event.inputs.historia_usuario }}"
+          echo "Repositorio base: ${{ github.event.inputs.repositorio_base }}"
+
+
       - name: Clonar repositorio base
         uses: actions/checkout@v3
         with:
@@ -34,6 +41,12 @@ jobs:
         run: |
           find repositorio-base/src/main/java -name "*.java" > clases_existentes.txt
           echo "🧩 Clases detectadas:" && cat clases_existentes.txt
+
+      - name: Verificar contenido del prompt
+        run: |
+          echo "📄 Contenido de entrada_gpt.txt:"
+          cat entrada_gpt.txt
+
 
       - name: Preparar prompt para GPT
         run: |
@@ -61,7 +74,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d @payload.json > respuesta_gpt.json
 
-          jq -r '.choices[0].message.content' respuesta_gpt.json > clases_generadas.java
+          cat respuesta_gpt.json  # Ver log completo de respuesta
+          jq -r '.choices[0].message.content // "❌ No se encontró contenido válido en la respuesta de GPT."' respuesta_gpt.json > clases_generadas.java
 
       - name: Verificar clase generada
         run: |
