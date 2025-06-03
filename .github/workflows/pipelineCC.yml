@@ -11,9 +11,7 @@ on:
         description: 'Repositorio base (ej: rodrigorojasg/testSpring)'
         required: true
         type: string
-  push:  # <- este bloque es nuevo y temporal
-    paths:
-      - .github/workflows/pipelineCC.yml
+
 
 
 jobs:
