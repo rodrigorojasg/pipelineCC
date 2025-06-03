@@ -6,9 +6,12 @@ on:
       historia_usuario:
         description: 'Historia de Usuario'
         required: true
+        type: string
       repositorio_base:
         description: 'Repositorio base (ej: rodrigorojasg/testSpring)'
         required: true
+        type: string
+
 
 jobs:
   generar_codigo:
