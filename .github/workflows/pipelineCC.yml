@@ -43,11 +43,16 @@ jobs:
 
       - name: Indexar clases Java existentes
         run: |
-          echo "📁 Listando clases Java encontradas en el repositorio base:"
-          find repositorio-base/src/main/java -name "*.java" | tee clases_existentes.txt
-          echo "✅ clases_existentes.txt creado con:"
-          cat clases_existentes.txt
+          echo "📁 Buscando clases Java dentro de repositorio-base/src/main/java..."
+          find repositorio-base/src/main/java -type f -name "*.java" > clases_existentes.txt
 
+          if [ ! -s clases_existentes.txt ]; then
+            echo "❌ No se encontraron archivos .java. Abortando."
+            exit 1
+          fi
+
+          echo "✅ Clases detectadas:"
+          cat clases_existentes.txt
 
       - name: Verificar contenido del prompt
         run: |
@@ -59,13 +64,18 @@ jobs:
         run: |
           echo "Historia de usuario recibida:" > entrada_gpt.txt
           echo "${{ github.event.inputs.historia_usuario }}" >> entrada_gpt.txt
+
           echo -e "\nClases detectadas en el repositorio base:" >> entrada_gpt.txt
+
           if [ -f clases_existentes.txt ]; then
             cat clases_existentes.txt >> entrada_gpt.txt
           else
-            echo "❌ clases_existentes.txt no encontrado" && exit 1
+            echo "❌ clases_existentes.txt no encontrado. Abortando."
+            exit 1
           fi
 
+          echo "📄 entrada_gpt.txt creada con el siguiente contenido:"
+          cat entrada_gpt.txt
 
       - name: Llamar a OpenAI para generar clases
         env:
