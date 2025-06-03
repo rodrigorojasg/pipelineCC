@@ -63,11 +63,11 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           PROMPT="$(cat entrada_gpt.txt)"
-          jq -n --arg prompt "$PROMPT" '{
+          jq -n --arg prompt "$PROMPT" ' {
             model: "gpt-4",
             messages: [
-              { role: "system", content: "Eres un generador de código Java experto en Spring Boot. Solo devuelve clases Java válidas." },
-              { role: "user", content: $prompt }
+              { "role": "system", "content": "Eres un generador de código Java experto en Spring Boot. Solo devuelve clases Java válidas, separadas por líneas que comiencen con 'package'. No incluyas comentarios explicativos ni texto adicional." },
+              { "role": "user", "content": $prompt }
             ],
             temperature: 0.3
           }' > payload.json
@@ -78,17 +78,22 @@ jobs:
             -d @payload.json > respuesta_gpt.json
 
           cat respuesta_gpt.json  # Ver log completo de respuesta
-          jq -r '.choices[0].message.content // "❌ No se encontró contenido válido en la respuesta de GPT."' respuesta_gpt.json > clases_generadas.java
+          jq -r '.choices[0].message.content // "❌ No se encontró contenido válido en la respuesta de GPT."' respuesta_gpt.json > clases_generadas_completas.java
 
-      - name: Verificar clase generada
-        run: |
-          echo "🧪 Contenido generado por GPT:"
-          cat clases_generadas.java
-
-      - name: Guardar clase generada en repositorio base
+      - name: Separar clases generadas en archivos individuales
         run: |
           mkdir -p repositorio-base/src/main/java/ai/generated
-          mv clases_generadas.java repositorio-base/src/main/java/ai/generated/ClaseGenerada.java
+          csplit --quiet --prefix=clase_ --suffix-format=%02d.java clases_generadas_completas.java "/^package /" {*}
+          i=1
+          for file in clase_*.java; do
+            class_name=$(grep -oP 'public\s+(class|interface|enum)\s+\K\w+' "$file" | head -n 1)
+            if [ -n "$class_name" ]; then
+              mv "$file" "repositorio-base/src/main/java/ai/generated/${class_name}.java"
+            else
+              mv "$file" "repositorio-base/src/main/java/ai/generated/ClaseGenerada_$i.java"
+            fi
+            i=$((i+1))
+          done
 
       - name: Commit y push a nueva rama
         env:
