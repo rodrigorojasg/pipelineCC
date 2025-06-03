@@ -17,15 +17,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Verificar inputs
         run: |
           echo "Historia de Usuario: ${{ github.event.inputs.historia_usuario }}"
           echo "Repositorio base: ${{ github.event.inputs.repositorio_base }}"
 
       - name: Clonar repositorio base
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
+          token: ${{ secrets.GH_PAT }}
           repository: ${{ github.event.inputs.repositorio_base }}
           path: repositorio-base
 
@@ -47,23 +47,17 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Clases detectadas:"
-          cat clases_existentes.txt
-
           echo "Historia de usuario recibida:" > entrada_gpt.txt
           echo "${{ github.event.inputs.historia_usuario }}" >> entrada_gpt.txt
           echo -e "\nClases detectadas en el repositorio base:" >> entrada_gpt.txt
           cat clases_existentes.txt >> entrada_gpt.txt
-
-          echo "📄 entrada_gpt.txt creada con el siguiente contenido:"
-          cat entrada_gpt.txt
 
       - name: Llamar a OpenAI para generar clases
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           PROMPT="$(cat entrada_gpt.txt)"
-          jq -n --arg prompt "$PROMPT" ' {
+          jq -n --arg prompt "$PROMPT" '{
             model: "gpt-4",
             messages: [
               { "role": "system", "content": "Eres un generador de código Java experto en Spring Boot. Solo devuelve clases Java válidas, separadas por líneas que comiencen con 'package'. No incluyas comentarios explicativos ni texto adicional." },
@@ -77,7 +71,6 @@ jobs:
             -H "Content-Type: application/json" \
             -d @payload.json > respuesta_gpt.json
 
-          cat respuesta_gpt.json  # Ver log completo de respuesta
           jq -r '.choices[0].message.content // "❌ No se encontró contenido válido en la respuesta de GPT."' respuesta_gpt.json > clases_generadas_completas.java
 
       - name: Separar clases generadas en archivos individuales
@@ -104,18 +97,15 @@ jobs:
           git config user.email "github-actions@github.com"
           
           git checkout -b feature/autogenerado-${{ github.run_id }}
-
           git add .
-          
+
           if git diff --cached --quiet; then
             echo "⛔ No hay cambios para commitear, se omite push"
             exit 0
           fi
 
           git commit -m "🤖 Funcionalidad generada desde historia de usuario"
-
-          # Setea el remote al repositorio base correcto
+          
+          # Setea el remote al repositorio base
           git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.event.inputs.repositorio_base }}.git
-
           git push origin HEAD
-
