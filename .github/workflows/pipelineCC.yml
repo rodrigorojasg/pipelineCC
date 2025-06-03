@@ -102,16 +102,20 @@ jobs:
           cd repositorio-base
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          
           git checkout -b feature/autogenerado-${{ github.run_id }}
-          git add .
-          git commit -m "🤖 Funcionalidad generada desde historia de usuario"
-          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git
-          git fetch origin
-          git pull --rebase origin main
 
+          git add .
+          
           if git diff --cached --quiet; then
             echo "⛔ No hay cambios para commitear, se omite push"
-          else
-            git commit -m "🤖 Funcionalidad generada desde historia de usuario"
-            git push origin main
+            exit 0
           fi
+
+          git commit -m "🤖 Funcionalidad generada desde historia de usuario"
+
+          # Setea el remote al repositorio base correcto
+          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.event.inputs.repositorio_base }}.git
+
+          git push origin HEAD
+
