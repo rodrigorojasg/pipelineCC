@@ -1,0 +1,91 @@
+name: Generar funcionalidad desde historia de usuario
+
+on:
+  workflow_dispatch:
+    inputs:
+      historia_usuario:
+        description: 'Historia de Usuario'
+        required: true
+      repositorio_base:
+        description: 'Repositorio base (ej: rodrigorojasg/testSpring)'
+        required: true
+
+jobs:
+  generar_codigo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositorio base
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.event.inputs.repositorio_base }}
+          path: repositorio-base
+
+      - name: Instalar dependencias necesarias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq unzip openjdk-17-jdk maven
+
+      - name: Indexar clases Java existentes
+        run: |
+          find repositorio-base/src/main/java -name "*.java" > clases_existentes.txt
+          echo "🧩 Clases detectadas:" && cat clases_existentes.txt
+
+      - name: Preparar prompt para GPT
+        run: |
+          echo "Historia de usuario recibida:" > entrada_gpt.txt
+          echo "${{ github.event.inputs.historia_usuario }}" >> entrada_gpt.txt
+          echo -e "\nClases detectadas en el repositorio base:" >> entrada_gpt.txt
+          cat clases_existentes.txt >> entrada_gpt.txt
+
+      - name: Llamar a OpenAI para generar clases
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          PROMPT="$(cat entrada_gpt.txt)"
+          jq -n --arg prompt "$PROMPT" '{
+            model: "gpt-4",
+            messages: [
+              { role: "system", content: "Eres un generador de código Java experto en Spring Boot. Solo devuelve clases Java válidas." },
+              { role: "user", content: $prompt }
+            ],
+            temperature: 0.3
+          }' > payload.json
+
+          curl -s https://api.openai.com/v1/chat/completions \
+            -H "Authorization: Bearer $OPENAI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @payload.json > respuesta_gpt.json
+
+          jq -r '.choices[0].message.content' respuesta_gpt.json > clases_generadas.java
+
+      - name: Verificar clase generada
+        run: |
+          echo "🧪 Contenido generado por GPT:"
+          cat clases_generadas.java
+
+      - name: Guardar clase generada en repositorio base
+        run: |
+          mkdir -p repositorio-base/src/main/java/ai/generated
+          mv clases_generadas.java repositorio-base/src/main/java/ai/generated/ClaseGenerada.java
+
+      - name: Commit y push a nueva rama
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          cd repositorio-base
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git checkout -b feature/autogenerado-${{ github.run_id }}
+          git add .
+          git commit -m "🤖 Funcionalidad generada desde historia de usuario"
+          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git HEAD
+
+      - name: Crear Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_PAT }}
+          commit-message: "🤖 Funcionalidad generada desde historia de usuario"
+          branch: feature/autogenerado-${{ github.run_id }}
+          title: "Nueva funcionalidad generada desde historia de usuario"
+          body: "Este PR fue generado automáticamente desde la historia: `${{ github.event.inputs.historia_usuario }}`"
