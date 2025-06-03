@@ -12,8 +12,6 @@ on:
         required: true
         type: string
 
-
-
 jobs:
   generar_codigo:
     runs-on: ubuntu-latest
@@ -25,7 +23,6 @@ jobs:
           echo "Historia de Usuario: ${{ github.event.inputs.historia_usuario }}"
           echo "Repositorio base: ${{ github.event.inputs.repositorio_base }}"
 
-
       - name: Clonar repositorio base
         uses: actions/checkout@v3
         with:
@@ -35,13 +32,12 @@ jobs:
       - name: Inspeccionar contenido clonado
         run: ls -R repositorio-base
 
-
       - name: Instalar dependencias necesarias
         run: |
           sudo apt-get update
           sudo apt-get install -y jq unzip openjdk-17-jdk maven
 
-      - name: Indexar clases Java existentes
+      - name: Indexar clases Java existentes y preparar prompt
         run: |
           echo "📁 Buscando clases Java dentro de repositorio-base/src/main/java..."
           find repositorio-base/src/main/java -type f -name "*.java" > clases_existentes.txt
@@ -54,25 +50,10 @@ jobs:
           echo "✅ Clases detectadas:"
           cat clases_existentes.txt
 
-      - name: Verificar contenido del prompt
-        run: |
-          echo "📄 Contenido de entrada_gpt.txt:"
-          cat entrada_gpt.txt
-
-
-      - name: Preparar prompt para GPT
-        run: |
           echo "Historia de usuario recibida:" > entrada_gpt.txt
           echo "${{ github.event.inputs.historia_usuario }}" >> entrada_gpt.txt
-
           echo -e "\nClases detectadas en el repositorio base:" >> entrada_gpt.txt
-
-          if [ -f clases_existentes.txt ]; then
-            cat clases_existentes.txt >> entrada_gpt.txt
-          else
-            echo "❌ clases_existentes.txt no encontrado. Abortando."
-            exit 1
-          fi
+          cat clases_existentes.txt >> entrada_gpt.txt
 
           echo "📄 entrada_gpt.txt creada con el siguiente contenido:"
           cat entrada_gpt.txt
