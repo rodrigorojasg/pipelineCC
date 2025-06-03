@@ -105,13 +105,13 @@ jobs:
           git checkout -b feature/autogenerado-${{ github.run_id }}
           git add .
           git commit -m "🤖 Funcionalidad generada desde historia de usuario"
-          git push https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git HEAD
+          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/${{ github.repository }}.git
+          git fetch origin
+          git pull --rebase origin main
 
-      - name: Crear Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GH_PAT }}
-          commit-message: "🤖 Funcionalidad generada desde historia de usuario"
-          branch: feature/autogenerado-${{ github.run_id }}
-          title: "Nueva funcionalidad generada desde historia de usuario"
-          body: "Este PR fue generado automáticamente desde la historia: `${{ github.event.inputs.historia_usuario }}`"
+          if git diff --cached --quiet; then
+            echo "⛔ No hay cambios para commitear, se omite push"
+          else
+            git commit -m "🤖 Funcionalidad generada desde historia de usuario"
+            git push origin main
+          fi
