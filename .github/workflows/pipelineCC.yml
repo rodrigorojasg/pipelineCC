@@ -32,6 +32,10 @@ jobs:
           repository: ${{ github.event.inputs.repositorio_base }}
           path: repositorio-base
 
+      - name: Inspeccionar contenido clonado
+        run: ls -R repositorio-base
+
+
       - name: Instalar dependencias necesarias
         run: |
           sudo apt-get update
@@ -39,8 +43,11 @@ jobs:
 
       - name: Indexar clases Java existentes
         run: |
-          find repositorio-base/src/main/java -name "*.java" > clases_existentes.txt
-          echo "🧩 Clases detectadas:" && cat clases_existentes.txt
+          echo "📁 Listando clases Java encontradas en el repositorio base:"
+          find repositorio-base/src/main/java -name "*.java" | tee clases_existentes.txt
+          echo "✅ clases_existentes.txt creado con:"
+          cat clases_existentes.txt
+
 
       - name: Verificar contenido del prompt
         run: |
@@ -53,7 +60,12 @@ jobs:
           echo "Historia de usuario recibida:" > entrada_gpt.txt
           echo "${{ github.event.inputs.historia_usuario }}" >> entrada_gpt.txt
           echo -e "\nClases detectadas en el repositorio base:" >> entrada_gpt.txt
-          cat clases_existentes.txt >> entrada_gpt.txt
+          if [ -f clases_existentes.txt ]; then
+            cat clases_existentes.txt >> entrada_gpt.txt
+          else
+            echo "❌ clases_existentes.txt no encontrado" && exit 1
+          fi
+
 
       - name: Llamar a OpenAI para generar clases
         env:
